@@ -1,0 +1,22 @@
+# Ignore virtual environment
+venv/
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore dataset files
+dataset.json
+dataset_synthetic.json
+labels.csv
+
+# Ignore results and images generated during training/inference
+results/
+images/
+images_synthetic/
+
+# Ignore system files
+.DS_Store
+Thumbs.db
