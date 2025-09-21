@@ -1,106 +1,108 @@
-# smart_document_ocr.py
-import cv2
-from PIL import Image, ImageEnhance, ImageFilter
+import re
+import json
 import torch
+from PIL import Image, ImageOps, ImageEnhance
 from transformers import TrOCRProcessor, VisionEncoderDecoderModel
-import numpy as np
 
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+# --------------------------
+# Load both models
+# --------------------------
+print("Loading models... (this may take a while)")
 
-# Ask user for document type
-doc_type = input("Enter document type (handwritten / printed): ").strip().lower()
+processor = TrOCRProcessor.from_pretrained("microsoft/trocr-base-stage1")
 
-# Set models
-printed_model_name = "microsoft/trocr-large-printed"
-handwritten_model_name = "microsoft/trocr-large-handwritten"
+printed_model = VisionEncoderDecoderModel.from_pretrained("microsoft/trocr-base-printed")
+handwritten_model = VisionEncoderDecoderModel.from_pretrained("microsoft/trocr-base-handwritten")
 
-def load_model(model_name):
-    processor = TrOCRProcessor.from_pretrained(model_name)
-    model = VisionEncoderDecoderModel.from_pretrained(model_name)
-    model.to(DEVICE)
-    return processor, model
+device = "cuda" if torch.cuda.is_available() else "cpu"
+printed_model.to(device)
+handwritten_model.to(device)
 
-# Try loading chosen model first
-if doc_type == "handwritten":
-    processor, model = load_model(handwritten_model_name)
-else:
-    processor, model = load_model(printed_model_name)
+# --------------------------
+# Preprocessing function
+# --------------------------
+def preprocess_image(img_path):
+    image = Image.open(img_path).convert("RGB")
+    image = ImageOps.exif_transpose(image)
+    image = ImageOps.autocontrast(image)
+    enhancer = ImageEnhance.Sharpness(image)
+    image = enhancer.enhance(1.5)
+    return image
 
-# Load image
-IMAGE_PATH = input("Enter image path: ").strip()
-img_bgr = cv2.imread(IMAGE_PATH)
-if img_bgr is None:
-    raise FileNotFoundError(f"Image not found: {IMAGE_PATH}")
+# --------------------------
+# Run OCR with fallback
+# --------------------------
+def run_ocr(image, doc_type):
+    if doc_type == "printed":
+        model = printed_model
+    else:
+        model = handwritten_model
 
-# -------- IMAGE ENHANCEMENT / DENOISING / RESOLUTION --------
-def enhance_image(img_bgr):
-    # Convert to grayscale
-    gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
-    
-    # Denoise (fast Non-local Means Denoising)
-    denoised = cv2.fastNlMeansDenoising(gray, None, 10, 7, 21)
-    
-    # CLAHE for contrast enhancement
-    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
-    enhanced = clahe.apply(denoised)
-    
-    # Optional: upscale small images to improve OCR
-    h, w = enhanced.shape
-    if w < 800:
-        scale = 800 / w
-        enhanced = cv2.resize(enhanced, (int(w*scale), int(h*scale)), interpolation=cv2.INTER_CUBIC)
-    
-    # Convert back to BGR
-    enhanced_bgr = cv2.cvtColor(enhanced, cv2.COLOR_GRAY2BGR)
-    return enhanced_bgr
+    # Process with first model
+    pixel_values = processor(images=image, return_tensors="pt").pixel_values.to(device)
+    generated_ids = model.generate(pixel_values)
+    text = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
 
-img_bgr = enhance_image(img_bgr)
+    # Fallback if text is too small (failed OCR)
+    if len(text.strip()) < 5:
+        print("⚠️ Switching model because OCR failed...")
+        model = handwritten_model if doc_type == "printed" else printed_model
+        pixel_values = processor(images=image, return_tensors="pt").pixel_values.to(device)
+        generated_ids = model.generate(pixel_values)
+        text = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
 
-# Preprocess: threshold + dilation
-img_gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
-thresh = cv2.adaptiveThreshold(img_gray, 255,
-                               cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                               cv2.THRESH_BINARY_INV, 15, 10)
-kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (30, 5))
-dilated = cv2.dilate(thresh, kernel, iterations=1)
-
-# Find line contours
-contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-line_boxes = [(x, y, w, h) for x, y, w, h in [cv2.boundingRect(c) for c in contours] if w > 30 and h > 10]
-line_boxes = sorted(line_boxes, key=lambda b: b[1])
-
-def ocr_line(crop_img, processor, model):
-    crop_pil = Image.fromarray(cv2.cvtColor(crop_img, cv2.COLOR_BGR2RGB))
-    crop_pil = ImageEnhance.Contrast(crop_pil).enhance(2.0)
-    crop_pil = ImageEnhance.Sharpness(crop_pil).enhance(2.0)
-    crop_pil = crop_pil.filter(ImageFilter.MedianFilter(size=3))
-    w_crop, h_crop = crop_pil.size
-    if w_crop < 600:
-        crop_pil = crop_pil.resize((600, int(h_crop*(600/w_crop))), Image.BICUBIC)
-    pixel_values = processor(images=crop_pil, return_tensors="pt").pixel_values.to(DEVICE)
-    generated_ids = model.generate(pixel_values, max_length=512, num_beams=5, early_stopping=True)
-    text = processor.batch_decode(generated_ids, skip_special_tokens=True)[0].strip()
     return text
 
-def run_ocr(processor, model):
-    outputs = []
-    for x, y, w, h in line_boxes:
-        crop = img_bgr[y:y+h, x:x+w]
-        text = ocr_line(crop, processor, model)
-        outputs.append(text)
-    return "\n".join([t for t in outputs if t])
+# --------------------------
+# Extract fields
+# --------------------------
+def extract_fields(text):
+    fields = {
+        "Name": None,
+        "DOB": None,
+        "ID Number": None,
+        "Address": None
+    }
 
-# Run OCR with chosen model
-full_text = run_ocr(processor, model)
+    # Regex patterns for fields
+    dob_pattern = re.compile(r"(\d{2}[/-]\d{2}[/-]\d{4})")
+    id_pattern = re.compile(r"\b([A-Z0-9]{6,})\b")
 
-# Auto-fallback if output seems empty or garbage
-if len(full_text.strip()) == 0 or set(full_text.strip()) in [{"T"}, {""}]:
-    print("Initial model output seems incorrect, switching to other model...")
-    if doc_type == "handwritten":
-        processor, model = load_model(printed_model_name)
-    else:
-        processor, model = load_model(handwritten_model_name)
-    full_text = run_ocr(processor, model)
+    for line in text.split("\n"):
+        line = line.strip()
 
-print("\n--- OCR RESULT ---\n")
-print(full_text)
+        if "name" in line.lower():
+            fields["Name"] = line.split(":")[-1].strip()
+
+        if "dob" in line.lower() or "date of birth" in line.lower():
+            dob_match = dob_pattern.search(line)
+            if dob_match:
+                fields["DOB"] = dob_match.group(1)
+
+        if "address" in line.lower():
+            fields["Address"] = line.split(":")[-1].strip()
+
+        if "id" in line.lower() or "number" in line.lower():
+            id_match = id_pattern.search(line)
+            if id_match:
+                fields["ID Number"] = id_match.group(1)
+
+    return fields
+
+# --------------------------
+# Main
+# --------------------------
+if __name__ == "__main__":
+    img_path = input("Enter path of document image: ").strip()
+    doc_type = input("Is this document handwritten or printed? (handwritten/printed): ").strip().lower()
+
+    image = preprocess_image(img_path)
+    extracted_text = run_ocr(image, doc_type)
+
+    print("\n----- OCR RAW OUTPUT -----")
+    print(extracted_text)
+
+    fields = extract_fields(extracted_text)
+
+    print("\n----- STRUCTURED OUTPUT -----")
+    print(json.dumps(fields, indent=4))
