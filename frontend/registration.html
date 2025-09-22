@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registration Form with Auto-fill</title>
+    <link rel="stylesheet" href="registration.css">
+</head>
+<body>
+    <div class="container">
+        <h1>New User Registration</h1>
+        <p>Upload a document (image, PDF, DOCX, TXT) to auto-fill the form fields.</p>
+
+        <section class="card">
+            <h2>Document Upload & Auto-fill</h2>
+            <form id="registrationUploadForm">
+                <div class="form-group">
+                    <label for="regDocumentUpload">Upload Document:</label>
+                    <input type="file" id="regDocumentUpload" accept="image/*, application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, text/plain" required>
+                </div>
+                <div class="form-group">
+                    <label for="regDocType">Document Type (for images):</label>
+                    <select id="regDocType">
+                        <option value="printed">Printed</option>
+                        <option value="handwritten">Handwritten</option>
+                    </select>
+                </div>
+                <button type="submit">Extract & Auto-fill</button>
+            </form>
+            <div id="uploadStatus" class="status-message"></div>
+        </section>
+
+        <section class="card">
+            <h2>Registration Details</h2>
+            <form id="registrationForm">
+                <div class="form-group">
+                    <label for="regName">Name:</label>
+                    <input type="text" id="regName" placeholder="Full Name">
+                    <span class="fill-status" id="statusName"></span>
+                </div>
+                <div class="form-group">
+                    <label for="regAge">Age:</label>
+                    <input type="number" id="regAge" placeholder="Age">
+                    <span class="fill-status" id="statusAge"></span>
+                </div>
+                <div class="form-group">
+                    <label for="regGender">Gender:</label>
+                    <select id="regGender">
+                        <option value="">Select Gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <span class="fill-status" id="statusGender"></span>
+                </div>
+                <div class="form-group">
+                    <label for="regAddress">Address:</label>
+                    <textarea id="regAddress" rows="3" placeholder="Full Address"></textarea>
+                    <span class="fill-status" id="statusAddress"></span>
+                </div>
+                <div class="form-group">
+                    <label for="regEmail">Email:</label>
+                    <input type="email" id="regEmail" placeholder="email@example.com">
+                    <span class="fill-status" id="statusEmail"></span>
+                </div>
+                <div class="form-group">
+                    <label for="regPhone">Phone Number:</label>
+                    <input type="tel" id="regPhone" placeholder="+1 123-456-7890">
+                    <span class="fill-status" id="statusPhone"></span>
+                </div>
+                
+                <button type="submit">Register</button>
+            </form>
+        </section>
+    </div>
+
+    <script src="registration.js"></script>
+</body>
+</html>

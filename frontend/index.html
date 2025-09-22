@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR and Verification Demo</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>OCR and Verification Demo</h1>
+
+        <section class="card">
+            <h2>1. OCR Extraction API</h2>
+            <form id="ocrExtractForm">
+                <div class="form-group">
+                    <label for="imageUpload">Upload Document Image:</label>
+                    <input type="file" id="imageUpload" accept="image/*" required>
+                </div>
+                <div class="form-group">
+                    <label for="docType">Document Type:</label>
+                    <select id="docType">
+                        <option value="printed">Printed</option>
+                        <option value="handwritten">Handwritten</option>
+                    </select>
+                </div>
+                <button type="submit">Extract Text & Fields</button>
+            </form>
+            <div id="ocrResult" class="result-box">
+                <h3>OCR Result:</h3>
+                <pre id="ocrFullText"></pre>
+                <h3>Extracted Fields:</h3>
+                <pre id="ocrExtractedFields"></pre>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>2. Data Verification API</h2>
+            <form id="dataVerifyForm">
+                <div class="form-group">
+                    <label for="submittedName">Submitted Name:</label>
+                    <input type="text" id="submittedName" placeholder="e.g., John Doe">
+                </div>
+                <div class="form-group">
+                    <label for="submittedDOB">Submitted DOB:</label>
+                    <input type="text" id="submittedDOB" placeholder="e.g., 01/01/2000">
+                </div>
+                <div class="form-group">
+                    <label for="submittedID">Submitted ID Number:</label>
+                    <input type="text" id="submittedID" placeholder="e.g., ABC12345">
+                </div>
+                <div class="form-group">
+                    <label for="submittedAddress">Submitted Address:</label>
+                    <textarea id="submittedAddress" rows="3" placeholder="e.g., 123 Main St"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="originalDocumentText">Original Document Full Text (from OCR Extraction):</label>
+                    <textarea id="originalDocumentText" rows="5" required></textarea>
+                </div>
+                <button type="submit">Verify Data</button>
+            </form>
+            <div id="verificationResult" class="result-box">
+                <h3>Verification Result:</h3>
+                <pre id="verifyOutput"></pre>
+            </div>
+        </section>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
