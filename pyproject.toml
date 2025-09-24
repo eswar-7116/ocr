@@ -1,0 +1,7 @@
+[project]
+name = "demoocr"
+version = "0.1.0"
+description = "A demo of TrOCR"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
