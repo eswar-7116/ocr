@@ -2,7 +2,6 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Form
 from pydantic import BaseModel
 from typing import Optional
 import uvicorn
-import io
 from fastapi.middleware.cors import CORSMiddleware # Import CORSMiddleware
 
 from ocr_service import extract_fields, process_registration_document # Removed process_document_for_ocr
