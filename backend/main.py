@@ -47,6 +47,11 @@ class VerificationResult(BaseModel):
     match_status: str # "MATCH", "MISMATCH", "NOT_FOUND_SUBMITTED", "NOT_FOUND_EXTRACTED"
     confidence_score: float = 1.0 # Placeholder for now
 
+@app.get("/")
+async def Greeting():
+    return "Hey, How are you"
+
+
 @app.post("/ocr/extract", response_model=OCRResult, summary="Extract text and fields from an image")
 async def ocr_extraction_api(file: UploadFile = File(...), doc_type: str = Form("printed")):
     """

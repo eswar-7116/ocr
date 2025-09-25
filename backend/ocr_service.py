@@ -5,6 +5,8 @@ from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 import numpy as np
 import re
 import io
+import fitz
+from docx import Document
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 

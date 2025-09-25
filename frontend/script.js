@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ocrExtractedFields.textContent = 'Processing...';
 
         try {
-            const response = await fetch('http://127.0.0.1:8000/ocr/extract', {
+            const response = await fetch('http://localhost:8000/ocr/extract', {
                 method: 'POST',
                 body: formData,
             });
@@ -77,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
         verifyOutput.textContent = 'Verifying...';
 
         try {
-            const response = await fetch('http://127.0.0.1:8000/ocr/verify', {
+            const response = await fetch('http://localhost:8000/ocr/verify', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
