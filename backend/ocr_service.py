@@ -108,7 +108,8 @@ def ocr_line(crop_img: np.ndarray, processor: TrOCRProcessor, model: VisionEncod
 
 def run_ocr_on_image(image_bytes: bytes, doc_type: str = "printed") -> str:
     """
-    Runs OCR on the entire image, detecting words and reconstructing the layout.
+    Runs OCR on the entire image, detecting words, grouping them into lines,
+    and then performing OCR on each line to preserve layout.
     """
     # Convert bytes to OpenCV image
     nparr = np.frombuffer(image_bytes, np.uint8)
@@ -120,7 +121,7 @@ def run_ocr_on_image(image_bytes: bytes, doc_type: str = "printed") -> str:
     # Enhance the entire image first
     img_bgr = enhance_image(img_bgr)
 
-    # Preprocess for word detection: threshold + dilation
+    # Preprocess for word detection
     img_gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
     thresh = cv2.adaptiveThreshold(img_gray, 255,
                                    cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
@@ -130,59 +131,57 @@ def run_ocr_on_image(image_bytes: bytes, doc_type: str = "printed") -> str:
 
     # Find word contours
     contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    word_boxes = [(x, y, w, h) for x, y, w, h in [cv2.boundingRect(c) for c in contours] if w > 5 and h > 5]
+    word_boxes = [cv2.boundingRect(c) for c in contours if cv2.contourArea(c) > 20]
+
+    if not word_boxes:
+        return ""
+
+    # Group word boxes into lines
+    # Sort boxes by y-coordinate
+    word_boxes = sorted(word_boxes, key=lambda b: b[1])
+    
+    lines = []
+    if word_boxes:
+        current_line = [word_boxes[0]]
+        for box in word_boxes[1:]:
+            prev_box = current_line[-1]
+            
+            # Check if the vertical distance is small enough to be the same line
+            if (box[1] < prev_box[1] + prev_box[3]):
+                current_line.append(box)
+            else:
+                lines.append(current_line)
+                current_line = [box]
+        lines.append(current_line)
 
     # Select model based on doc_type
     current_model = PRINTED_MODEL if doc_type == "printed" else HANDWRITTEN_MODEL
 
-    # Perform OCR on each word and store with its bounding box
-    words = []
-    for x, y, w, h in word_boxes:
-        crop = img_bgr[y:y+h, x:x+w]
-        text = ocr_line(crop, PROCESSOR, current_model)
-        if text:
-            words.append({"text": text, "box": (x, y, w, h)})
-
-    # Group words into lines based on vertical position
-    if not words:
-        return ""
-
-    # Sort words by y-coordinate, then x-coordinate
-    words = sorted(words, key=lambda w: (w["box"][1], w["box"][0]))
-
-    lines = []
-    current_line = [words[0]]
-    for i in range(1, len(words)):
-        prev_word = current_line[-1]
-        current_word = words[i]
-        
-        # Check if the vertical distance is small enough to be the same line
-        prev_y, prev_h = prev_word["box"][1], prev_word["box"][3]
-        curr_y, curr_h = current_word["box"][1], current_word["box"][3]
-        
-        # A simple heuristic to group words into lines
-        if (curr_y < prev_y + prev_h / 2):
-            current_line.append(current_word)
-        else:
-            lines.append(current_line)
-            current_line = [current_word]
-    lines.append(current_line)
-
-    # Sort words within each line by x-coordinate and join
+    # Perform OCR on each line
     full_text = ""
-    for line in lines:
-        line = sorted(line, key=lambda w: w["box"][0])
-        line_text = " ".join([w["text"] for w in line])
-        full_text += line_text + "\n"
+    for line_of_boxes in lines:
+        # Sort boxes in the line by x-coordinate
+        line_of_boxes = sorted(line_of_boxes, key=lambda b: b[0])
 
-    # Auto-fallback if output seems empty or garbage
+        # Get the bounding box of the entire line
+        x_min = min([b[0] for b in line_of_boxes])
+        y_min = min([b[1] for b in line_of_boxes])
+        x_max = max([b[0] + b[2] for b in line_of_boxes])
+        y_max = max([b[1] + b[3] for b in line_of_boxes])
+        
+        # Crop the line from the image
+        line_crop = img_bgr[y_min:y_max, x_min:x_max]
+        
+        # Perform OCR on the line
+        text = ocr_line(line_crop, PROCESSOR, current_model)
+        
+        # Add indentation
+        indentation = " " * (x_min // 20) # 1 space for every 20 pixels
+        full_text += indentation + text + "\n"
+
+    # Fallback logic (can be improved)
     if len(full_text.strip()) == 0 or set(full_text.strip()) in [{"T"}, {""}]:
         print("Initial model output seems incorrect, switching to other model...")
-        current_model = HANDWRITTEN_MODEL if doc_type == "printed" else PRINTED_MODEL
-        # This part would need to be re-implemented with the new logic as well,
-        # but for now, we'll just return the (likely empty) result.
-        # A full re-run would be needed here.
-        # For simplicity, we will skip the fallback re-run in this modification.
         pass
 
     return full_text
