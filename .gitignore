@@ -205,3 +205,39 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+
+# ==================================
+# PYTHON ENVIRONMENT AND ARTIFACTS
+# ==================================
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# ==================================
+# DEEP LEARNING / HUGGING FACE / WANDB
+# ==================================
+# Model Weights (Crucial for size limits)
+*.bin
+*.safetensors
+*.pt
+*.pth
+
+# Directories for trained models and checkpoints
+trocr_finetuned_model/
+trocr_finetuned_final_model/
+runs/
+wandb/
+
+# ==================================
+# PROJECT DATA AND LOGS
+# ==================================
+# Generated Synthetic Data
+synthetic_dataset_v2/
+yep.zip
+
+# Logs/Temporary Files
+debug.log
+.DS_Store

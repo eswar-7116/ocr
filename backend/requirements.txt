@@ -8,3 +8,11 @@ numpy
 python-multipart
 pymupdf # For PDF processing
 python-docx # For DOCX processing
+
+python-multipart
+pymupdf # For PDF processing
+python-docx # For DOCX processing
+scikit-learn # For splitting data
+datasets # Hugging Face library for data handling
+evaluate # For metrics
+jiwer # For Character/Word Error Rate
