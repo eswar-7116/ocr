@@ -52,6 +52,7 @@ async def ocr_extraction_api(file: UploadFile = File(...), doc_type: str = Form(
     API 1: Accepts a scanned image and extracts text and relevant fields using OCR.
     """
     if not file.content_type.startswith("image/"):
+        print("Invalid file type.")
         raise HTTPException(status_code=400, detail="Invalid file type. Only image files are supported.")
     
     try:
@@ -61,7 +62,9 @@ async def ocr_extraction_api(file: UploadFile = File(...), doc_type: str = Form(
     except Exception as e:
         # Check if model loading failed and return 500 error
         if "OCR models were not initialized" in str(e):
+             print(f"Models not initialized: {e}")
              raise HTTPException(status_code=500, detail="OCR models failed to load. Check server console.")
+        print(f"OCR failed: {e}")
         raise HTTPException(status_code=500, detail=f"OCR processing failed: {e}")
 
 # --- API 1 (Alternative): Registration Extraction (Multi-Type) ---
@@ -77,6 +80,7 @@ async def register_extraction_api(file: UploadFile = File(...), doc_type: str = 
         "text/plain"
     ]
     if file.content_type not in allowed_types:
+        print("Unsupported file type.")
         raise HTTPException(status_code=400, detail=f"Unsupported file type: {file.content_type}. Allowed types are: {', '.join(allowed_types)}")
     
     try:
@@ -84,8 +88,10 @@ async def register_extraction_api(file: UploadFile = File(...), doc_type: str = 
         result = process_registration_document(file_bytes, file.content_type, doc_type.lower())
         return RegistrationExtractionResult(full_text=result["full_text"], extracted_fields=result["extracted_fields"])
     except ValueError as ve:
+        print(f"ValueError: {ve}")
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
+        print(f"Document processing failed: {e}")
         raise HTTPException(status_code=500, detail=f"Document processing failed: {e}")
 
 
@@ -104,6 +110,7 @@ async def data_verification_api(
         # 1. Parse submitted JSON data
         submitted_data_dict = json.loads(submitted_data)
     except json.JSONDecodeError:
+        print("Invalid JSON format for submitted_data.")
         raise HTTPException(status_code=400, detail="Invalid JSON format for submitted_data.")
     
     try:
@@ -125,13 +132,16 @@ async def data_verification_api(
         }
     
     except ValueError as ve:
+        print(f"ValueError: {ve}")
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
+        print(f"Verification failed: {e}")
         raise HTTPException(status_code=500, detail=f"Verification processing failed: {e}")
 
 
 if __name__ == "__main__":
     # Starting the server on port 8000
+    print("Server listening at port 8000")
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
 
